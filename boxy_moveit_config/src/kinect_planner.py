@@ -35,7 +35,7 @@ from std_msgs.msg import String
 from control_msgs.msg import *
 from trajectory_msgs.msg import *
 import roslib; roslib.load_manifest('ur_driver')
-from boxy_moveit_config.msg import pose_w_joints
+from iai_control_msgs.msg import pose_w_joints
 
 fresh_data = False
 pose_target = PoseStamped()
@@ -60,15 +60,17 @@ def callback(data):
     global pose_target
     global fresh_data, pose_req
     pose_target = data   
-    fresh_data = True
     pose_req = True # Flag to se if target is pose or joints
+    joints_req = False
+    fresh_data = True
 
 def callback_joints(data):
     global joint_target
     global fresh_data, joints_req
     joint_target = list(data.joint_values)
-    fresh_data = True
+    pose_req = False
     joints_req = True # Flag to se if target is pose or joints
+    fresh_data = True
 
 def move(plan_target):
     global goal
@@ -158,8 +160,12 @@ def kinect_planner():
     print "====== Waiting for server..."
     client.wait_for_server()
     print "====== Connected to server"
-    
-    while not rospy.is_shutdown():
+   
+     
+    while not rospy.is_shutdown(): 
+        print('.')
+        skip_iter = False
+
         if fresh_data == True: #If a new pose is received, plan.
         
             # Update arms position
@@ -170,7 +176,18 @@ def kinect_planner():
             if pose_req:
                 group.set_pose_target(pose_target)
             if joints_req:
-                group.set_joint_value_target(joint_target)
+                print('about to set joint target')
+                print(joint_target)
+                try:
+                    #Setting also values for the four virtual joints (one prismatic, and three rotational)
+                    new_joint_target = joint_target + [0.1]*4
+                    print('setting: '),
+                    print new_joint_target
+                    group.set_joint_value_target(new_joint_target)
+                except:
+                    print('cannot set joint target')
+                    skip_iter = True
+ 
 
             print "=========== Calculating trajectory... \n"
 
@@ -178,69 +195,73 @@ def kinect_planner():
             plan_opt = dict()
             differ = dict()
 
-            try:
-                num = 1
-                rep = 0
+            if not skip_iter:
 
-                # Generate several plans and compare them to get the shortest one
-                #for num in range(1,8):
-                while num < 7:
-                    num += 1
-                    plan_temp = group.plan()
-                    move(plan_temp)
-                    plan_opt[num] = goal.trajectory
-                    diff=0
-                    for point in goal.trajectory.points:
-                        # calculate the distance between initial pose and planned one
-                        for i in range(0,6):
-                            diff = abs(neck_init_joints[i] - point.positions[i])+abs(diff)
-                        differ[num] = diff
-                    # If the current plan is good, take it
-                    if diff < 110:
-                       break
-                    # If plan is too bad, don't consider it
-                    if diff > 400:
-                        num = num - 1
-                        print "Plan is too long. Replanning."
-                        rep = rep + 1
-                        if rep > 4:
-                            num = num +1
+                try:
+                    num = 1
+                    rep = 0
 
-                # If no plan was found...
-                if differ == {}:
-                    print "---- Fail: No motion plan found. No execution attempted. Probably robot joints are out of range."
-                    break
+                    # Generate several plans and compare them to get the shortest one
+                    #for num in range(1,8):
+                    while num < 7:
+                        num += 1
+                        plan_temp = group.plan()
+                        move(plan_temp)
+                        plan_opt[num] = goal.trajectory
+                        diff=0
+                        for point in goal.trajectory.points:
+                            # calculate the distance between initial pose and planned one
+                            for i in range(0,6):
+                                diff = abs(neck_init_joints[i] - point.positions[i])+abs(diff)
+                            differ[num] = diff
+                        # If the current plan is good, take it
+                        if diff < 110:
+                           break
+                        # If plan is too bad, don't consider it
+                        if diff > 400:
+                            num = num - 1
+                            print "Plan is too long. Replanning."
+                            rep = rep + 1
+                            if rep > 4:
+                                num = num +1
 
-                else:
-                    # Select the shortest plan
-                    min_plan = min(differ.itervalues())
-                    select = [k for k, value in differ.iteritems() if value == min_plan]
-                    goal.trajectory = plan_opt[select[0]]
-                    #print " Plan difference:======= ", differ
-                    #print " Selected plan:========= ", select[0]
+                    # If no plan was found...
+                    if differ == {}:
+                        print "---- Fail: No motion plan found. No execution attempted. Probably robot joints are out of range."
+                        break
 
-                    # Remove the last 4 names and data from each point (dummy joints) before sending the goal
-                    goal.trajectory.joint_names = goal.trajectory.joint_names[:6]
-                    for point in goal.trajectory.points:
-                        point.positions = point.positions[:6]
-                        point.velocities = point.velocities[:6]
-                        point.accelerations = point.accelerations[:6]
+                    else:
+                        # Select the shortest plan
+                        min_plan = min(differ.itervalues())
+                        select = [k for k, value in differ.iteritems() if value == min_plan]
+                        goal.trajectory = plan_opt[select[0]]
+                        #print " Plan difference:======= ", differ
+                        #print " Selected plan:========= ", select[0]
 
-                    print "Sending goal"
-                    client.send_goal(goal)
-                    print "Waiting for result"
-                    client.wait_for_result()
+                        # Remove the last 4 names and data from each point (dummy joints) before sending the goal
+                        goal.trajectory.joint_names = goal.trajectory.joint_names[:6]
+                        for point in goal.trajectory.points:
+                            point.positions = point.positions[:6]
+                            point.velocities = point.velocities[:6]
+                            point.accelerations = point.accelerations[:6]
 
-                    # Change the position of the virtual joint to avoid collision
-                    neck_joints = group.get_current_joint_values()
-                    #neck_joints[6] = 0.7
-                    #group.set_joint_value_target(neck_joints)
-                    #group.go(wait=True)
+                        print "Sending goal"
+                        client.send_goal(goal)
+                        print "Waiting for result"
+                        client.wait_for_result()
+
+                        # Change the position of the virtual joint to avoid collision
+                        neck_joints = group.get_current_joint_values()
+                        print('neck joints:')
+                        print neck_joints
+                        #neck_joints[6] = 0.7
+                        #group.set_joint_value_target(neck_joints)
+                        #group.go(wait=True)
 
 
-            except (KeyboardInterrupt, SystemExit):
-                client.cancel_goal()
-                raise
+                except (KeyboardInterrupt, SystemExit):
+                    client.cancel_goal()
+                    raise
             
             rate.sleep()
     

@@ -9,18 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   message_generation
   moveit_msgs
-)
-
-add_message_files(
-   FILES
-   pose_w_joints.msg
- )
-
-## Generate added messages and services with any dependencies listed here
-generate_messages(
-  DEPENDENCIES
-  std_msgs
-  moveit_msgs
+  iai_control_msgs
 )
 
 catkin_package()

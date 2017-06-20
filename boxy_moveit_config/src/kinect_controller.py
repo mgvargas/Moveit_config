@@ -22,7 +22,7 @@ import copy
 import rospy
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import String
-from boxy_moveit_config.msg import pose_w_joints
+from iai_control_msgs.msg import pose_w_joints
 
 def kinect_pose_definition():
     rospy.sleep(10)
