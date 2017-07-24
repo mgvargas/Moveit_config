@@ -156,7 +156,8 @@ def kinect_planner():
     neck_const.joint_constraints.append(target_const)
 
     # Talking to the robot
-    client = actionlib.SimpleActionClient('/Kinect2_Target_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
+    #client = actionlib.SimpleActionClient('/Kinect2_Target_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
+    client = actionlib.SimpleActionClient('/neck/follow_joint_trajectory', FollowJointTrajectoryAction)
     print "====== Waiting for server..."
     client.wait_for_server()
     print "====== Connected to server"
@@ -179,8 +180,12 @@ def kinect_planner():
                 print('about to set joint target')
                 print(joint_target)
                 try:
-                    #Setting also values for the four virtual joints (one prismatic, and three rotational)
-                    new_joint_target = joint_target + [0.1]*4
+                    if len(joint_target) == 6:
+                      #Setting also values for the four virtual joints (one prismatic, and three rotational)
+                      new_joint_target = joint_target + [0.1]*4
+                    else:
+                      new_joint_target = joint_target
+
                     print('setting: '),
                     print new_joint_target
                     group.set_joint_value_target(new_joint_target)
