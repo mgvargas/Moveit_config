@@ -25,7 +25,6 @@ from std_msgs.msg import String
 from iai_control_msgs.msg import pose_w_joints
 
 def kinect_pose_definition():
-    rospy.sleep(10)
     rospy.init_node('robot_state', anonymous=True,)
     rate = rospy.Rate(0.5)
 
