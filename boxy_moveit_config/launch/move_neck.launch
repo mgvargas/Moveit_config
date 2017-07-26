@@ -6,7 +6,6 @@
  <!-- the "sim" argument controls whether we connect to a Simulated or Real robot -->
  <!--  - if sim=false, a robot_ip argument is required -->
  <arg name="sim" default="false" />
- <arg name="robot_ip" unless="$(arg sim)" />
  <!-- ========= END moveit_planning_execution.launch ========= -->
 
   <!-- By default, we are not in debug mode -->
@@ -23,8 +22,7 @@
   <!-- Load the URDF, SRDF and other .yaml configuration files on the param server -->
   <include file="$(find boxy_moveit_config)/launch/planning_context.launch">
     <arg name="load_robot_description" value="true"/>
-    <arg unless="$(arg bring_up_robot)" name="bring_up_robot" value="false"/>
-    <arg     if="$(arg bring_up_robot)" name="bring_up_robot" value="true"/>
+    <arg name="bring_up_robot" value="$(arg bring_up_robot)"/>
   </include>
 
   <!-- Run the main MoveIt executable without trajectory execution (we do not have controllers configured by default) -->
