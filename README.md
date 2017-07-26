@@ -1,4 +1,4 @@
-# Moveit_config
+# iai_boxy_moveit_config
 
 This package contains the files required to control the UR3 on boxy's head using Moveit. It can be controlled by sending a pose or a joint state.
 
